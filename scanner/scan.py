@@ -12,9 +12,13 @@ call this program with :
 python peach/scanner/scan.py 
 
 it will ask you a few questions and then show you a video 
-.. you must click the color you want the scanner to detect 
-befor it will actuly start scanning. just click on the laser beam 
-or siluet that you have captured with your cammera 
+.. you must click down on the center of the spining object 
+to select the center, then continue hloding down the mouse, drag
+it over the laser beam and let go of the mouse while its on the 
+color you wish to detect.
+
+
+ 
 
 it will then go about trying to creat a 3d modle out of the image data 
 and then save this in a wavefont / .obj file
@@ -45,6 +49,10 @@ the scanner can also get frames in real time from your webcam
 which is unsfull for coding and just seing how the program works.
 
 
+if you choose to make and image map then 
+simpley click the center of the image and watch the image map get created! 
+
+
 '''
 
 import cv
@@ -53,6 +61,9 @@ import time
 import random
 import os
 import math
+
+import numpy as np
+
 os.system('cls' if os.name=='nt' else 'clear')
 
 
@@ -77,9 +88,11 @@ if answer == 'i':
     if proxy:
         path += 'proxy/'
 else :
+    do_image_map = False
     path = 'peach/scanner/laser_scan_frames/'
     if proxy:
         path += 'proxy/'
+
 
 file_name = '1000.jpg'
 
@@ -92,7 +105,9 @@ class Scanner:
     _imageRGB = None;
     _imageHSV = None;
 
-    def __init__( self , path):
+    def __init__( self , path, do_image_map, real_time):
+        self.real_time = real_time
+        self.do_image_map = do_image_map
         self.frame_advance = 1
         self.center = None
         self.frame = 0 
@@ -130,6 +145,10 @@ class Scanner:
         if(event == MOUSE_DOWN):
             self.center = mouseX
             self.frame_advance = 0
+
+
+    
+
 
 
     def run( self ):
@@ -198,7 +217,7 @@ class Scanner:
         # create an object in the .obj file
         file.write('o PeachyScan\n')
         
-        if real_time == False:
+        if self.real_time == False:
             # getting the list of files
             files = os.listdir(self.path);
             print(len(files), ' files detected in ', self.path)
@@ -218,6 +237,13 @@ class Scanner:
         def exit_scanner():
             file.write(faces)
             file.close()
+
+        def make_image(width,height):
+            ''' 
+             returns a 2d array of touples that hold the BGR values on an image.
+            '''
+            blank_image = np.zeros((height,width,3), np.uint8)
+            return(cv.fromarray(blank_image))
             
 
 
@@ -240,7 +266,7 @@ class Scanner:
 
 
 
-        if not do_image_map:    
+        if self.do_image_map == False:    
             while True:   #   0000000000000000000000000000000000000000000000000000000000000
                 
                     
@@ -253,7 +279,7 @@ class Scanner:
                 #print(self.frame)
                 #time.sleep(1)
                 # if we are doing a real time scan then capture frames from the web cam
-                if real_time: 
+                if self.real_time: 
                     img = cv.QueryFrame(capture)
                 
 
@@ -263,7 +289,7 @@ class Scanner:
                 #mat = cv.LoadImageM('scanner/edit.jpg', cv.CV_LOAD_IMAGE_COLOR)
                 
                 # load frames from disk:
-                if not real_time:
+                if not self.real_time:
                     self.frame += self.frame_advance
                     if self.frame > len(files)-2 : 
                         self.frame = 0
@@ -377,23 +403,30 @@ class Scanner:
                     break
 
 
-        if not real_time and do_image_map:
+        if not self.real_time and self.do_image_map:
             self.begin = False
             print('making image map')
+            mat = cv.LoadImageM(self.path+'1000.jpg', cv.CV_LOAD_IMAGE_COLOR)
+            print mat.rows , mat.cols
             time.sleep(2)
+            image_map = make_image(mat.cols, mat.rows)
+            cv.SaveImage('peach/scanner/image_map.jpg', image_map)
+            #time.sleep(2)
             self.frame = 0
             # do every frame_skip frames 
-            frame_skip = 1
+            frame_skip = 40
             j = 0
             colum_capture = []
             
             capture_width = 1
-            path = 'scanner/image_map_frames/'
-            files = os.listdir(path);
-            print(int(len(files)/frame_skip), 'files detected in ', path)
-            while True:
+            #path = 'scanner/image_map_frames/'
+            files = os.listdir(self.path);
+             
+            print(int(len(files)/frame_skip), 'files detected in ', self.path)
 
-                image_map = cv.LoadImageM(path+'image_map.jpg', cv.CV_LOAD_IMAGE_COLOR)
+            while True:
+                #ggggggg
+                image_map = cv.LoadImageM(self.path + '1000.jpg', cv.CV_LOAD_IMAGE_COLOR)
                 cv.ShowImage("camera", image_map)
                 c = cv.WaitKey(10)
                 if c == 27 or self.begin:
@@ -410,7 +443,7 @@ class Scanner:
                     #break
                 file_name = '' + str(1000 + j ) + '.jpg'
 
-                print(path+file_name)
+                print(self.path+file_name)
                 self.mat = cv.LoadImageM(path+file_name, cv.CV_LOAD_IMAGE_COLOR)
 
                 # load a vertical line of pixles rgb color values into variable colum_capture the pix on ether side green 
@@ -452,10 +485,10 @@ class Scanner:
                 c = cv.WaitKey(10)
                 if c == 27:
                     exit_scanner()
-                    cv.SaveImage('scanner/image_map.jpg', image_map)
+                    cv.SaveImage('peach/scanner/image_map.jpg', image_map)
                     break
 
 
 if __name__=="__main__":
-    demo = Scanner(path = path)
+    demo = Scanner(path = path, do_image_map = do_image_map, real_time = real_time)
     demo.run()
